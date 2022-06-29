@@ -1,14 +1,15 @@
 from dao.user_dao import UserDao
 from exception.invalid_parameter import InvalidParameterError
+from exception.user_not_found import UserNotFoundError
 
 class UserService:
 
     def __init__(self):
         self.user_dao = UserDao()
+
     # Get a list of User objects from the DAO layer
     # convert the user objects into dictionaries
     # return a list of dictionaries that each represent the users
-
     def get_all_users(self):
         list_of_user_objects = self.user_dao.get_all_users()
 
@@ -22,25 +23,42 @@ class UserService:
         # Method #2, use map
         # return list(map(lambda x: x.to_dict(), list_of_user_objects))
 
-    def get_user_by_username(self, username):
-        user_obj = self.user_dao.get_user_by_username(username)
+    def get_user_by_id(self, user_id):
+        user_obj = self.user_dao.get_user_by_id(user_id)
+
+        if not user_obj:
+            raise UserNotFoundError(f"User with id{user_id} was not found")
+
         return user_obj.to_dict()
+
+    # If user is deleted successfully, then return None (implicitly)
+    # If user does not exist, raise UserNotFoundException
+    def delete_user_by_id(self, user_id):
+
+        # Execute this block of code if user_dao.delete_user_by_id returns False (which means that we did not delete
+        # any record)
+        if not self.user_dao.delete_user_by_id(user_id):
+            raise UserNotFoundError(f"User with id {user_id} was not found")
 
     # 1. Check if username is at least 6 characters
     # 2. Check if username contains spaces
     # Invoke add_user in DAO, passing in a user_object
     # Return the dictionary representation of the return value from that method
-    def add_user(self):
+    def add_user(self, user_object):
         if " " in user_object.username:
             raise InvalidParameterError("Username cannot contain spaces!")
 
         if len(user_object.username) < 6:
             raise InvalidParameterError("Username must be at least 6 characters")
-        added_user_object = self.user_dao.add.user(user_object)
+
+        added_user_object = self.user_dao.add_user(user_object)
         return added_user_object.to_dict()
 
-    # Invoke add_user in DAO, passing in a username and user_object
-    # Return the dictionary representation of the return value from that method
-    def edit_user_by_username(self, username):
-        edited_user_obj = self.user_dao.edit_user_by_username(username, user_object)
-        return edited_user_obj.to_dict()
+    def update_user_by_id(self, user_object):
+        updated_user_object = self.user_dao.update_user_by_id(user_object.id)
+
+        if updated_user_object is None:
+            raise UserNotFoundError(f" User wit id {user_object.id} was not found")
+
+        return updated_user_object.to_dict()
+

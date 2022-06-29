@@ -1,10 +1,6 @@
 from model.user import User
-# Right now, we don't have a database to connect to
-# So we will store data inside a collection
-users = {
-    "bach21": User("bach21", "512-826-0001"),
-    "jane12345": User("jane12345", "512-826-0002")
-}
+import psycopg
+import copy
 
 class UserDao:
 
@@ -13,26 +9,104 @@ class UserDao:
     # Read - Retrieve a user or users form our "database
     # Update - Update a user in out "database"
     # Delete - Delete a user in our "database"
-    def get_user_by_username(self, username):
-        return users[username]  # Returns a user object
+    #    def get_user_by_username(self, username):
+    #       return users[username]  # Returns a user object
 
     def get_all_users(self):
-        users_values = []
-        for value in users.values():
-            users_values.append(value)
+        # Step 1: open a connection object
+        # The "with keyword will allow us to automatically close the connection object whenever we are done executing
+        # the block of code established using the with keyword
+        with psycopg.connect(host="127.0.0.1", port="5432", dbname="postgres", user="postgres",
+                             password="J1a0c2k5") as conn:
 
-        return users_values # Returns a list of user objects
+            # Automatically close the cursor
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM users")
 
-    def add_user(self, user):   # User will represent a User Object
-        users[user['username']] = user
+                my_list_of_user_objs = []
+                # iterate over each row of the users table
+                for user in cur:
+                    u_id = user[0]
+                    username = user[1]
+                    mobile_phone = user[2]
+                    active = user[3]
 
-        return user
+                    my_user_obj = User(u_id, username, mobile_phone, active)
+                    my_list_of_user_objs.append(my_user_obj)
 
-    def edit_user_by_username(self, username, new_user_info): # new_user_info will be a User object
-        if username == new_user_info.username:    # if we are not updated the username, replace the rest of the info
-            users[username] = new_user_info
-        else:   # Otherwise, delete the original key-value pair and create new key-value pair
-            del users[username]
-            users[new_user_info.username] = new_user_info
+    # return True if a user was deleted
+    # return False if a user was not deleted
+    def delete_user_by_id(self, user_id):
+        with psycopg.connect(host="127.0.0.1", port="5432", dbname="postgres", user="postgres",
+                             password="J1a0c2k5") as conn:
 
-        return new_user_info
+            # Automatically close the cursor
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
+
+                # Check number of rows that are deleted
+                rows_deleted = cur.rowcount
+
+                if rows_deleted != 1:
+                    return False
+                else:
+                    conn.commit()
+                    return True
+
+    # add_user returns a User object representing the user that was just added
+    def add_user(self, user_object):   # User will represent a User Object
+        username_to_add = user_object.username
+        mobile_phone_to_add = user_object.mobile_phone
+
+        with psycopg.connect(host="127.0.0.1", port="5432", dbname="postgres", user="postgres",
+                             password="J1a0c2k5") as conn:
+
+            # Automatically close the cursor
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO users (username, mobile_phone) VALUES (%s, %s) RETURNING *",
+                            (username_to_add, mobile_phone_to_add))
+
+                user_row_that_was_just_inserted = cur.fetchone()
+
+                conn.commit()
+
+                return User(user_row_that_was_just_inserted[0], user_row_that_was_just_inserted[1],
+                            user_row_that_was_just_inserted[2], user_row_that_was_just_inserted[3]),
+
+
+    def get_user_by_id(self, user_id):
+        with psycopg.connect(host="127.0.0.1", port="5432", dbname="postgres", user="postgres",
+                             password="J1a0c2k5") as conn:
+
+            # Automatically close the cursor
+            with conn.cursor() as cur:
+
+                cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+
+                user_row = cur.fetchone()   # return None if no record is found
+                if not user_row:    # None is a falsy value, so not None is True
+                    return None     # immediately return from this function is None is true
+
+                u_id = user_row[0]
+                username = user_row[1]
+                mobile_phone = user_row[2]
+                active = user_row[3]
+
+                return User(u_id, username, mobile_phone, active)
+
+    def update_user_by_id(self, user_object):
+        with psycopg.connect(host="127.0.0.1", port="5432", dbname="postgres", user="postgres",
+                             password="J1a0c2k5") as conn:
+
+            # Automatically close the cursor
+            with conn.cursor() as cur:
+                cur.execute("UPDATE users SET username = %s, mobile_phone = %s, "
+                            "active_user = %s WHERE id = %s RETURNING *",
+                            (user_object.username, user_object.mobile_phone, user_object.active, user_object.id))
+                conn. commit()
+
+                user_row_updated = cur.fetchone()
+                if user_row_updated is None:
+                    return None
+
+                return User(user_row_updated[0], user_row_updated[1], user_row_updated[2], user_row_updated[3])
