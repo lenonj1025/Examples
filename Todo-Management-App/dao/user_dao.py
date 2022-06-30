@@ -1,6 +1,5 @@
 from model.user import User
 import psycopg
-import copy
 
 class UserDao:
 
@@ -72,7 +71,6 @@ class UserDao:
 
                 return User(user_row_that_was_just_inserted[0], user_row_that_was_just_inserted[1],
                             user_row_that_was_just_inserted[2], user_row_that_was_just_inserted[3]),
-
 
     def get_user_by_id(self, user_id):
         with psycopg.connect(host="127.0.0.1", port="5432", dbname="postgres", user="postgres",
